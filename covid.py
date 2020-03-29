@@ -9,7 +9,7 @@ us_url = 'https://covidtracking.com/api/us/daily.csv'
 df_state = pd.read_csv(state_url)
 df_usa = pd.read_csv(us_url)
 SUFFIXES = {1: 'st', 2: 'nd', 3: 'rd'}
-starting_caseload = 1
+starting_caseload = 100
 
 
 def ordinal(num):
@@ -63,7 +63,7 @@ for stat in ['positive', 'death']:
     if df_usa['date_zero'].max() > x_max:
         x_max = df_usa['date_zero'].max()
 
-    ax.set_ylim(top=y_max, bottom=1)
+    ax.set_ylim(top=y_max, bottom=starting_caseload)
     ax.set_xlim(left=0, right=x_max)
     ax.legend()
     str_xaxis_label = 'Days since {:s} {:s}'.format(

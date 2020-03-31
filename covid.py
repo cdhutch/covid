@@ -52,8 +52,13 @@ if __name__ == '__main__':
     df_grid['2 days'] = 2 ** (df_grid.index / 2)
     df_grid['3 days'] = 2 ** (df_grid.index / 3)
     df_grid['7 days'] = 2 ** (df_grid.index / 7)
-
-    for stat in ['positive', 'death']:
+    d_stats = {
+        'US_states_cases': ('positive', 100),
+        'US_states_deaths': ('death', 10)}
+    for key in d_stats:
+        stat = d_stats[key][0]
+        starting_caseload = d_stats[key][1]
+    # for stat in ['positive', 'death']:
         fig, ax = plt.subplots()
 
         for col in df_grid.columns:
@@ -75,7 +80,7 @@ if __name__ == '__main__':
         if df_usa['date_zero'].max() > x_max:
             x_max = df_usa['date_zero'].max()
 
-        ax.set_ylim(top=y_max, bottom=1)
+        ax.set_ylim(top=y_max, bottom=starting_caseload)
         ax.set_xlim(left=0, right=x_max)
         ax.legend()
         str_xaxis_label = 'Days since {:s} {:s}'.format(

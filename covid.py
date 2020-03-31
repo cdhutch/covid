@@ -4,7 +4,6 @@ from matplotlib.ticker import ScalarFormatter
 import numpy as np
 import subprocess
 import sys
-import math
 
 state_url = 'https://covidtracking.com/api/states/daily.csv'
 us_url = 'https://covidtracking.com/api/us/daily.csv'
@@ -54,29 +53,22 @@ if __name__ == '__main__':
         '2 days': (2, (0, (5, 5))),
         '3 days': (3, (0, (5, 10))),
         'weekly': (7, (0, (1, 10)))}
-    # df_grid['daily'] = 2 ** df_grid.index
-    # df_grid['2 days'] = 2 ** (df_grid.index / 2)
-    # df_grid['3 days'] = 2 ** (df_grid.index / 3)
-    # df_grid['7 days'] = 2 ** (df_grid.index / 7)
     d_stats = {
         'US_states_cases': ('positive', 100),
         'US_states_deaths': ('death', 10)}
     for key in d_stats:
         stat = d_stats[key][0]
         starting_caseload = d_stats[key][1]
-    # for stat in ['positive', 'death']:
         fig, ax = plt.subplots()
 
         df_grid = pd.DataFrame(index=np.arange(0, 100, 0.25))
         for grid in d_grids:
 
             df_grid[grid] = 2 ** (df_grid.index / d_grids[grid]
-                                  [0] + math.log10(starting_caseload))
+                                  [0]) * starting_caseload
 
-            # for col in df_grid.columns:
             ax.semilogy(df_grid.index, df_grid[grid], label=grid,
                         color='darkgray', linestyle=d_grids[grid][1])
-            # print(d_grids[grid][1])
         x_max, y_max = 0, 0
         for state in ['VA', 'NY', 'WA', 'CA', 'LA']:
             df_plot = df_state[df_state['state'] == state]

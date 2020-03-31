@@ -47,11 +47,19 @@ def open_pdf(fname):
 
 
 if __name__ == '__main__':
+
+    d_grids = {
+        'daily': (1, (0, (5, 1))),
+        '2 days': (2, (0, (5, 5))),
+        '3 days': (3, (0, (5, 10))),
+        'weekly': (7, (0, (1, 10)))}
     df_grid = pd.DataFrame(index=np.arange(0, 100, 0.25))
-    df_grid['daily'] = 2 ** df_grid.index
-    df_grid['2 days'] = 2 ** (df_grid.index / 2)
-    df_grid['3 days'] = 2 ** (df_grid.index / 3)
-    df_grid['7 days'] = 2 ** (df_grid.index / 7)
+    for grid in d_grids:
+        df_grid[grid] = 2 ** (df_grid.index / d_grids[grid][0])
+    # df_grid['daily'] = 2 ** df_grid.index
+    # df_grid['2 days'] = 2 ** (df_grid.index / 2)
+    # df_grid['3 days'] = 2 ** (df_grid.index / 3)
+    # df_grid['7 days'] = 2 ** (df_grid.index / 7)
     d_stats = {
         'US_states_cases': ('positive', 100),
         'US_states_deaths': ('death', 10)}
@@ -61,8 +69,12 @@ if __name__ == '__main__':
     # for stat in ['positive', 'death']:
         fig, ax = plt.subplots()
 
-        for col in df_grid.columns:
-            ax.semilogy(df_grid.index, df_grid[col], ':k')
+        for grid in d_grids:
+
+            # for col in df_grid.columns:
+            ax.semilogy(df_grid.index, df_grid[grid], label=grid,
+                        color='darkgray', linestyle=d_grids[grid][1])
+            # print(d_grids[grid][1])
         x_max, y_max = 0, 0
         for state in ['VA', 'NY', 'WA', 'CA', 'LA']:
             df_plot = df_state[df_state['state'] == state]

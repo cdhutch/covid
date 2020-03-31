@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 import numpy as np
 import subprocess
+import sys
 
 state_url = 'https://covidtracking.com/api/states/daily.csv'
 us_url = 'https://covidtracking.com/api/us/daily.csv'
@@ -35,44 +36,54 @@ def modify_df(df, initial_caseload, plot_stat):
     return df
 
 
-df_grid = pd.DataFrame(index=np.arange(0, 100, 0.25))
-df_grid['daily'] = 2 ** df_grid.index
-df_grid['2 days'] = 2 ** (df_grid.index / 2)
-df_grid['3 days'] = 2 ** (df_grid.index / 3)
-df_grid['7 days'] = 2 ** (df_grid.index / 7)
+def open_pdf(fname):
+    if sys.platform == 'darwin':
+        open_cmd = 'open'
+    elif sys.platform == 'linux':
+        open_cmd = 'xdg-open'
+    elif sys.platform == 'win32':
+        open_cmd = 'explorer'
+    subprocess.run([open_cmd, fname])
 
-for stat in ['positive', 'death']:
-    fig, ax = plt.subplots()
 
-    for col in df_grid.columns:
-        ax.semilogy(df_grid.index, df_grid[col], ':k')
-    x_max, y_max = 0, 0
-    for state in ['VA', 'NY', 'WA', 'CA', 'LA']:
-        df_plot = df_state[df_state['state'] == state]
-        df_plot = modify_df(df_plot, starting_caseload, stat)
-        ax.semilogy(df_plot['date_zero'], df_plot[stat], label=state)
-        if df_plot[stat].max() > y_max:
-            y_max = df_plot[stat].max()
-        if df_plot['date_zero'].max() > x_max:
-            x_max = df_plot['date_zero'].max()
-    df_usa = modify_df(df_usa, starting_caseload, stat)
-    ax.semilogy(df_usa['date_zero'], df_usa[stat],
-                'k', linewidth=2, label='Total US')
-    if df_usa[stat].max() > y_max:
-        y_max = df_usa[stat].max()
-    if df_usa['date_zero'].max() > x_max:
-        x_max = df_usa['date_zero'].max()
+if __name__ == '__main__':
+    df_grid = pd.DataFrame(index=np.arange(0, 100, 0.25))
+    df_grid['daily'] = 2 ** df_grid.index
+    df_grid['2 days'] = 2 ** (df_grid.index / 2)
+    df_grid['3 days'] = 2 ** (df_grid.index / 3)
+    df_grid['7 days'] = 2 ** (df_grid.index / 7)
 
-    ax.set_ylim(top=y_max, bottom=1)
-    ax.set_xlim(left=0, right=x_max)
-    ax.legend()
-    str_xaxis_label = 'Days since {:s} {:s}'.format(
-        ordinal(starting_caseload), stat)
-    ax.set_xlabel(str_xaxis_label)
-    str_yaxis_label = 'Total number of {:s}s'.format(stat)
-    ax.set_ylabel(str_yaxis_label)
-    ax.yaxis.set_major_formatter(ScalarFormatter())
-    fname = 'covid_' + stat + '.pdf'
-    plt.savefig(fname)
-    subprocess.run(['open', fname])
-# plt.show()
+    for stat in ['positive', 'death']:
+        fig, ax = plt.subplots()
+
+        for col in df_grid.columns:
+            ax.semilogy(df_grid.index, df_grid[col], ':k')
+        x_max, y_max = 0, 0
+        for state in ['VA', 'NY', 'WA', 'CA', 'LA']:
+            df_plot = df_state[df_state['state'] == state]
+            df_plot = modify_df(df_plot, starting_caseload, stat)
+            ax.semilogy(df_plot['date_zero'], df_plot[stat], label=state)
+            if df_plot[stat].max() > y_max:
+                y_max = df_plot[stat].max()
+            if df_plot['date_zero'].max() > x_max:
+                x_max = df_plot['date_zero'].max()
+        df_usa = modify_df(df_usa, starting_caseload, stat)
+        ax.semilogy(df_usa['date_zero'], df_usa[stat],
+                    'k', linewidth=2, label='Total US')
+        if df_usa[stat].max() > y_max:
+            y_max = df_usa[stat].max()
+        if df_usa['date_zero'].max() > x_max:
+            x_max = df_usa['date_zero'].max()
+
+        ax.set_ylim(top=y_max, bottom=1)
+        ax.set_xlim(left=0, right=x_max)
+        ax.legend()
+        str_xaxis_label = 'Days since {:s} {:s}'.format(
+            ordinal(starting_caseload), stat)
+        ax.set_xlabel(str_xaxis_label)
+        str_yaxis_label = 'Total number of {:s}s'.format(stat)
+        ax.set_ylabel(str_yaxis_label)
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        fname = 'covid_' + stat + '.pdf'
+        plt.savefig(fname)
+        open_pdf(fname)

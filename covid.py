@@ -70,7 +70,7 @@ if __name__ == '__main__':
             ax.semilogy(df_grid.index, df_grid[grid], label=grid,
                         color='darkgray', linestyle=d_grids[grid][1])
         x_max, y_max = 0, 0
-        for state in ['VA', 'NY', 'WA', 'CA', 'LA']:
+        for state in ['VA', 'NY', 'WA', 'CA', 'LA', 'FL', 'NJ', 'GA']:
             df_plot = df_state[df_state['state'] == state]
             df_plot = modify_df(df_plot, starting_caseload, stat)
             ax.semilogy(df_plot['date_zero'], df_plot[stat], label=state)

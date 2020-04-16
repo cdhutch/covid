@@ -15,26 +15,43 @@ class CovidDataset(object):
         self.d_remap = {'state': 'locality'}
         self.source_date_format = '%Y%m%d'
 
-    # static
     def return_ordinal(num):
-        SUFFIXES = {1: 'st', 2: 'nd', 3: 'rd'}
-        # I'm checking for 10-20 because those are the digits that
-        # don't follow the normal counting scheme.
+        suffixes = {1: 'st', 2: 'nd', 3: 'rd'}
         if 10 <= num % 100 <= 20:
             suffix = 'th'
         else:
-            # the second parameter is a default.
-            suffix = SUFFIXES.get(num % 10, 'th')
+            suffix = suffixes.get(num % 10, 'th')
         return str(num) + suffix
 
-    def load(self):
-        df = pd.read_csv(self.url)
-        df.rename(columns=self.d_remap, inplace=True)
-        df['NewDate'] = pd.to_datetime(
-            df['date'].copy(), format=self.source_date_format)
-        self.df = df
+    def load(self, l_d_datasets=None):
+        if l_d_datasets is not None:
+            self.df = pd.DataFrame()
+            for d_dataset in l_d_datasets:
+                df = pd.read_csv(d_dataset['url'])
+                if 'd_remap' in d_dataset.keys():
+                    df.rename(columns=d_dataset['d_remap'], inplace=True)
+                if 'l_assignments' in d_dataset.keys():
+                    for assignment in d_dataset['l_assignments']:
+                        df[assignment[0]] = assignment[1]
+                self.df = self.df.append(df, sort=False)
+        else:
+            df = pd.read_csv(self.url)
+            df.rename(columns=self.d_remap, inplace=True)
+            self.df = df
+        self.df['NewDate'] = pd.to_datetime(
+            self.df['date'].copy(), format=self.source_date_format)
         # print(self.df)
 
+
+d_us = {'url': 'https://covidtracking.com/api/us/daily.csv',
+        'd_remap': {'states': 'locality'},
+        'source_date_format': '%Y%m%d',
+        'l_assignments': [('locality', 'US')]
+        }
+d_state = {'url': 'https://covidtracking.com/api/states/daily.csv',
+           'd_remap': {'state': 'locality'},
+           'source_date_format': '%Y%m%d',
+           }
 
 state_url = 'https://covidtracking.com/api/states/daily.csv'
 us_url = 'https://covidtracking.com/api/us/daily.csv'
@@ -132,12 +149,16 @@ def old_code():
 
 if __name__ == '__main__':
 
-    state = CovidDataset()
-    state.load()
-    us = CovidDataset()
-    us.url = 'https://covidtracking.com/api/us/daily.csv'
-    us.d_remap = {'states': 'locality'}
-    us.load()
-    us.df['locality'] = 'US'
-    print(us.df)
-
+    # state = CovidDataset()
+    # state.load()
+    # us = CovidDataset()
+    # us.url = 'https://covidtracking.com/api/us/daily.csv'
+    # us.d_remap = {'states': 'locality'}
+    # us.load()
+    # us.df['locality'] = 'US'
+    # print(us.df)
+    us_states = CovidDataset()
+    us_states.load([d_us, d_state])
+    # us_states.load([d_us])
+    # us_states.load()
+    print(us_states.df)

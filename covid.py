@@ -8,12 +8,13 @@ import sys
 
 class CovidDataset(object):
 
-    def __init__(self):
+    def __init__(self, jhu_dataset=False):
         self.url = 'https://covidtracking.com/api/states/daily.csv'
         self.starting_caseload = 1
         self.l_localites = ['VA', 'NY', 'WA', 'CA', 'LA', 'FL', 'NJ', 'GA']
         self.d_remap = {'state': 'locality'}
         self.source_date_format = '%Y%m%d'
+        self.jhu_dataset = jhu_dataset
         self.df = pd.DataFrame()
 
     @staticmethod
@@ -26,6 +27,23 @@ class CovidDataset(object):
         return str(num) + suffix
 
     def load(self, l_d_datasets=None):
+
+        def _pull_jhu_dataset():
+            url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
+            df = pd.read_csv(url)
+            # l_countries = df['Country/Region'].unique()
+            df_day = pd.DataFrame()
+            for col in df.columns[4:]:
+                print(pd.Timestamp(col))
+                it = df.iterrows()
+                for index, row in it:
+                    day_row = {'date': pd.Timestamp(col), 'locality': row['Country/Region'], 'positive': row[col]}
+                    df_day = df_day.append(day_row, ignore_index=True)
+            print(df_day)
+            exit()
+
+        if self.jhu_dataset:
+            df = _pull_jhu_dataset()
         if l_d_datasets is not None:
             self.df = pd.DataFrame()
             for d_dataset in l_d_datasets:
@@ -115,8 +133,7 @@ def open_pdf(pdf_fname):
     subprocess.run([open_cmd, pdf_fname])
 
 
-if __name__ == '__main__':
-
+def us_states_standard():
     us_states = CovidDataset()
     us_states.load([d_us, d_state])
     d_stats = {
@@ -128,3 +145,10 @@ if __name__ == '__main__':
         fname = 'covid_' + d_stats[key][0] + '.pdf'
         plt.savefig(fname)
         open_pdf(fname)
+
+
+if __name__ == '__main__':
+
+    countries = CovidDataset(jhu_dataset=True)
+    countries.load()
+    us_states_standard()

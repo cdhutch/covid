@@ -5,6 +5,37 @@ import numpy as np
 import subprocess
 import sys
 
+
+class CovidDataset(object):
+
+    def __init__(self):
+        self.url = 'https://covidtracking.com/api/states/daily.csv'
+        self.starting_caseload = 1
+        self.l_localites = ['VA', 'NY', 'WA', 'CA', 'LA', 'FL', 'NJ', 'GA']
+        self.d_remap = {'state': 'locality'}
+        self.source_date_format = '%Y%m%d'
+
+    # static
+    def return_ordinal(num):
+        SUFFIXES = {1: 'st', 2: 'nd', 3: 'rd'}
+        # I'm checking for 10-20 because those are the digits that
+        # don't follow the normal counting scheme.
+        if 10 <= num % 100 <= 20:
+            suffix = 'th'
+        else:
+            # the second parameter is a default.
+            suffix = SUFFIXES.get(num % 10, 'th')
+        return str(num) + suffix
+
+    def load(self):
+        df = pd.read_csv(self.url)
+        df.rename(columns=self.d_remap, inplace=True)
+        df['NewDate'] = pd.to_datetime(
+            df['date'].copy(), format=self.source_date_format)
+        self.df = df
+        # print(self.df)
+
+
 state_url = 'https://covidtracking.com/api/states/daily.csv'
 us_url = 'https://covidtracking.com/api/us/daily.csv'
 df_state = pd.read_csv(state_url)
@@ -46,8 +77,7 @@ def open_pdf(fname):
     subprocess.run([open_cmd, fname])
 
 
-if __name__ == '__main__':
-
+def old_code():
     d_grids = {
         'daily': (1, (0, (5, 1))),
         '2 days': (2, (0, (5, 5))),
@@ -98,3 +128,16 @@ if __name__ == '__main__':
         fname = 'covid_' + stat + '.pdf'
         plt.savefig(fname)
         open_pdf(fname)
+
+
+if __name__ == '__main__':
+
+    state = CovidDataset()
+    state.load()
+    us = CovidDataset()
+    us.url = 'https://covidtracking.com/api/us/daily.csv'
+    us.d_remap = {'states': 'locality'}
+    us.load()
+    us.df['locality'] = 'US'
+    print(us.df)
+

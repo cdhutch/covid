@@ -42,6 +42,47 @@ class CovidDataset(object):
             self.df['date'].copy(), format=self.source_date_format)
         # print(self.df)
 
+    def create_ft_figure(self, stat='positive', starting_caseload=100):
+        # d_stats = {
+        #     'cases': ('positive', 100),
+        #     'deaths': ('death', 10)}
+        # for key in d_stats:
+        #     stat = d_stats[key][0]
+        #     starting_caseload = d_stats[key][1]
+        fig, ax = plt.subplots()
+        df_grid = pd.DataFrame(index=np.arange(0, 100, 0.25))
+        d_grids = {
+            'daily': (1, (0, (5, 1))),
+            '2 days': (2, (0, (5, 5))),
+            '3 days': (3, (0, (5, 10))),
+            'weekly': (7, (0, (1, 10)))}
+        for grid in d_grids:
+            df_grid[grid] = 2 ** (df_grid.index / d_grids[grid]
+                                  [0]) * starting_caseload
+            ax.semilogy(df_grid.index, df_grid[grid], label=grid,
+                        color='darkgray', linestyle=d_grids[grid][1])
+        x_max, y_max = 0, 0
+        for locality in self.df['locality'].unique():
+            # df_plot = df_state[df_state['state'] == state]
+            df_plot = self.df[self.df['locality'] == locality]
+            df_plot = modify_df(df_plot, starting_caseload, stat)
+            ax.semilogy(df_plot['date_zero'], df_plot[stat], label=locality)
+            if df_plot[stat].max() > y_max:
+                y_max = df_plot[stat].max()
+            if df_plot['date_zero'].max() > x_max:
+                x_max = df_plot['date_zero'].max()
+
+        ax.set_ylim(top=y_max, bottom=starting_caseload)
+        ax.set_xlim(left=0, right=x_max)
+        ax.legend()
+        str_xaxis_label = 'Days since {:s} {:s}'.format(
+            ordinal(starting_caseload), stat)
+        ax.set_xlabel(str_xaxis_label)
+        str_yaxis_label = 'Total number of {:s}s'.format(stat)
+        ax.set_ylabel(str_yaxis_label)
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        return fig
+
 
 d_us = {'url': 'https://covidtracking.com/api/us/daily.csv',
         'd_remap': {'states': 'locality'},
@@ -162,3 +203,14 @@ if __name__ == '__main__':
     # us_states.load([d_us])
     # us_states.load()
     print(us_states.df)
+    d_stats = {
+        'cases': ('positive', 100),
+        'deaths': ('death', 10)
+    }
+    for key in d_stats:
+        fig = us_states.create_ft_figure(d_stats[key][0], d_stats[key][1])
+        fname = 'covid_' + d_stats[key][0] + '.pdf'
+        plt.savefig(fname)
+        open_pdf(fname)
+        # stat = d_stats[key][0]
+        # starting_caseload = d_stats[key][1]

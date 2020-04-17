@@ -16,6 +16,7 @@ class CovidDataset(object):
         self.source_date_format = '%Y%m%d'
         self.jhu_dataset = jhu_dataset
         self.df = pd.DataFrame()
+        self.stat = ''
 
     @staticmethod
     def return_ordinal(num):
@@ -29,21 +30,26 @@ class CovidDataset(object):
     def load(self, l_d_datasets=None):
 
         def _pull_jhu_dataset():
-            url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
-            df = pd.read_csv(url)
-            # l_countries = df['Country/Region'].unique()
             df_day = pd.DataFrame()
-            for col in df.columns[4:]:
+            for col in self.df.columns[4:]:
+                df_intraday = pd.DataFrame()
                 print(pd.Timestamp(col))
-                it = df.iterrows()
+                it = self.df.iterrows()
                 for index, row in it:
-                    day_row = {'date': pd.Timestamp(col), 'locality': row['Country/Region'], 'positive': row[col]}
+                    intraday_row = {'date': pd.Timestamp(
+                        col), 'locality': row['locality'],
+                        self.stat: row[col]}
+                    df_intraday = df_intraday.append(
+                        intraday_row, ignore_index=True)
+                df_gb = df_intraday.groupby(['locality']).sum()
+                for locality in df_gb.index:
+                    day_row = {'date': pd.Timestamp(col),
+                               'locality': locality,
+                               self.stat: df_gb.loc[locality][self.stat]
+                               }
                     df_day = df_day.append(day_row, ignore_index=True)
-            print(df_day)
-            exit()
+            self.df = df_day
 
-        if self.jhu_dataset:
-            df = _pull_jhu_dataset()
         if l_d_datasets is not None:
             self.df = pd.DataFrame()
             for d_dataset in l_d_datasets:
@@ -60,8 +66,11 @@ class CovidDataset(object):
             df = pd.read_csv(self.url)
             df.rename(columns=self.d_remap, inplace=True)
             self.df = df
-        self.df['NewDate'] = pd.to_datetime(
-            self.df['date'].copy(), format=self.source_date_format)
+        if self.jhu_dataset:
+            _pull_jhu_dataset()
+        else:
+            self.df['NewDate'] = pd.to_datetime(
+                self.df['date'].copy(), format=self.source_date_format)
 
     def create_ft_figure(self, stat='positive', starting_caseload=100):
 
@@ -84,8 +93,8 @@ class CovidDataset(object):
             '3 days': (3, (0, (5, 10))),
             'weekly': (7, (0, (1, 10)))}
         for grid in d_grids:
-            df_grid[grid] = 2 ** (df_grid.index / d_grids[grid]
-                                  [0]) * starting_caseload
+            df_grid[grid] = 2 ** (
+                df_grid.index / d_grids[grid][0]) * starting_caseload
             ax.semilogy(df_grid.index, df_grid[grid], label=grid,
                         color='darkgray', linestyle=d_grids[grid][1])
         x_max, y_max = 0, 0
@@ -120,6 +129,24 @@ d_state = {'url': 'https://covidtracking.com/api/states/daily.csv',
            'source_date_format': '%Y%m%d',
            'l_localities': ['VA', 'NY', 'WA', 'CA', 'LA', 'FL', 'NJ', 'GA'],
            }
+d_jhu_positive = {
+    'url': 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/' +
+           'master/csse_covid_19_data/csse_covid_19_time_series/' +
+           'time_series_covid19_confirmed_global.csv',
+    'd_stats': ('positive', 100),
+    'd_remap': {'Country/Region': 'locality'},
+    'l_localities': ['US', 'Italy', 'Iceland', 'China',
+                     'Korea, South', 'Brazil']
+}
+d_jhu_death = {
+    'url': 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/' +
+           'master/csse_covid_19_data/csse_covid_19_time_series/' +
+           'time_series_covid19_confirmed_global.csv',
+    'd_stats': ('death', 10),
+    'd_remap': {'Country/Region': 'locality'},
+    'l_localities': ['US', 'Italy', 'Iceland', 'China',
+                     'Korea, South', 'Brazil']
+}
 
 
 def open_pdf(pdf_fname):
@@ -141,14 +168,27 @@ def us_states_standard():
         'deaths': ('death', 10)
     }
     for key in d_stats:
-        fig = us_states.create_ft_figure(d_stats[key][0], d_stats[key][1])
-        fname = 'covid_' + d_stats[key][0] + '.pdf'
+        us_states.create_ft_figure(d_stats[key][0],
+                                   d_stats[key][1])
+        fname = 'us_states_covid_' + d_stats[key][0] + '.pdf'
+        plt.savefig(fname)
+        open_pdf(fname)
+
+
+def jhu_standard():
+    countries = CovidDataset(jhu_dataset=True)
+    for d_jhu in [d_jhu_positive, d_jhu_death]:
+        countries.stat = d_jhu['d_stats'][0]
+        countries.load([d_jhu])
+        countries.create_ft_figure(
+            d_jhu['d_stats'][0], d_jhu['d_stats'][1])
+        fname = 'country_covid_' + d_jhu['d_stats'][0] + '.pdf'
         plt.savefig(fname)
         open_pdf(fname)
 
 
 if __name__ == '__main__':
-
-    countries = CovidDataset(jhu_dataset=True)
-    countries.load()
+    jhu_standard()
     us_states_standard()
+
+    # us_states_standard()

@@ -451,6 +451,7 @@ def main() -> int:
 
     # Date-window controls (for automation / non-interactive usage)
     ap.add_argument("--start-date", type=str, default=None, help="Start date (ISO YYYY-MM-DD). Overrides interactive prompt.")
+    ap.add_argument("--prompt-start-date", action="store_true", help="Prompt for start date interactively (ISO YYYY-MM-DD). Default behavior is non-interactive.")
     ap.add_argument(
         "--end-date",
         type=str,
@@ -500,7 +501,8 @@ def main() -> int:
     if df.empty:
         raise SystemExit("No valid rows after parsing Date/Time and numeric BP values.")
 
-    # ---- Start-date selection (CLI overrides prompt) ----
+
+    # ---- Start-date selection ----
     default_ts = pd.to_datetime(df["DateTime"].min())
     default_start = default_ts.date().isoformat()
 
@@ -513,12 +515,16 @@ def main() -> int:
         except Exception:
             raise SystemExit("Invalid --start-date. Use YYYY-MM-DD.")
         user_provided_start = True
+        start_date_note = f"Series start date (CLI): {start_date.date().isoformat()}"
+    elif args.prompt_start_date and sys.stdin.isatty():
+        start_date, user_provided_start, default_start = prompt_series_start_date(df)
+        if user_provided_start:
+            start_date_note = (
+                f"Series start date (user): {start_date.date().isoformat()} (default was {default_start})"
+            )
     else:
-        # Keep the interactive prompt behavior, but only if stdin is a TTY.
-        if sys.stdin.isatty():
-            start_date, user_provided_start, default_start = prompt_series_start_date(df)
-        else:
-            start_date = pd.Timestamp(default_start)
+        # Non-interactive default: earliest date in the CSV
+        start_date = pd.Timestamp(default_start).normalize()
 
     df = df[df["DateTime"] >= start_date].copy()
     if df.empty:
@@ -569,7 +575,13 @@ def main() -> int:
         start_date_note=start_date_note,
         comparison_note=comparison_note,
     )
-    print(f"✅ Wrote {args.out.resolve()}")
+    out_path = args.out.resolve()
+    print(f"✅ Wrote {out_path}")
+
+    # Auto-open PDF on macOS
+    import subprocess
+    subprocess.run(["open", str(out_path)], check=False)
+
     return 0
 
 

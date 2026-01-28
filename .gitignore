@@ -42,5 +42,4 @@ config.rst
 package-lock.json
 geckodriver.log
 *.iml
-bp.csv
 bp_*.pdf

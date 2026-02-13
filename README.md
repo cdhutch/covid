@@ -2,51 +2,40 @@
 
 Utilities for working with COVID-related datasets and personal health time-series analysis.
 
-This repository currently contains two primary tools:
+This repository contains:
 
-- `covid.py` – original COVID data analysis script
-- `bp_report.py` – blood pressure (BP) time-series reporting and statistics generator
-
----
-
-# 1. covid.py
-
-> Original script (unchanged)
-
-`covid.py` contains utilities for processing COVID datasets and generating derived outputs.
-
-Typical usage:
-
-```bash
-python3 covid.py <input-file> [options]
-```
-
-(Refer to inline comments in `covid.py` for specific options and data formats.)
+- `covid.py` – original COVID data analysis script  
+- `bp_report.py` – blood pressure (BP) time-series reporting and statistical analysis tool  
 
 ---
 
-# 2. bp_report.py — Blood Pressure Time-Series Report Generator
+# 1. bp_report.py — Blood Pressure Time-Series Reporting
 
-`bp_report.py` generates a publication-quality **PDF report** from a CSV export of blood pressure measurements.
+`bp_report.py` generates a publication-quality PDF report from a CSV export of blood pressure measurements.
+
+---
+
+## 1.1 Core Features
 
 The report includes:
 
 - Time-series plot  
-  - Systolic (red)  
-  - Diastolic (green)  
+  - **Systolic (red)**  
+  - **Diastolic (green)**  
 - Datapoint value labels  
 - Mean and median lines  
 - ±1σ and ±2σ shaded bands  
 - Summary statistics  
 - Optional normality diagnostics  
 - Optional gap-outlier handling  
-- Optional before/after date comparisons  
+- Optional before/after comparison  
+- Automatic opening of generated PDF (macOS)  
 
 ---
 
-## 2.1 Input CSV Format
+## 1.2 Input CSV Format
 
-The script accepts either of the following header styles:
+Supported headers:
 
 ### Preferred
 
@@ -60,221 +49,207 @@ Date,Time,Systolic,Diastolic,Pulse,Notes
 Date,Time,Systolic (mmHg),Diastolic (mmHg),Pulse (bpm),Notes
 ```
 
-Notes:
-- `Pulse` and `Notes` are optional
-- `Date`, `Time`, `Systolic`, and `Diastolic` are required
+Required columns:
 
-Example:
+- Date  
+- Time  
+- Systolic  
+- Diastolic  
 
-```
-"Jan 04, 2026",07:01,123,86,58,
-```
+Pulse and Notes are optional.
 
 ---
 
-## 2.2 Basic Usage
+## 1.3 Sitting Filter (NEW)
+
+Per physician recommendation, multiple readings taken in the same sitting should discard the first reading.
+
+### Default Behavior
+
+The script:
+
+- Treats readings within **15 minutes** as the same sitting  
+- Keeps only the **most recent reading** within that window  
+- Discards earlier readings in that window  
+
+If only one reading exists within a 15-minute window, it is kept.
+
+### Control Flags
+
+Adjust window length:
 
 ```bash
-python3 bp_report.py bp.csv -o bp_report.pdf
+--sitting-window-minutes 15
 ```
 
-Generates a single-page PDF containing:
+Disable sitting filter entirely:
 
-- Plot
-- Mean / median / standard deviation
+```bash
+--no-sitting-filter
+```
+
+The report annotates when readings are removed.
 
 ---
 
-## 2.3 Optional Features (Flags)
+## 1.4 Gap-Outlier Detection
 
-### Normality diagnostics
+```bash
+--gap-outliers
+```
+
+Flags the first reading after a gap exceeding:
+
+```bash
+--gap-days 2
+```
+
+Used with:
+
+```bash
+--compare
+```
+
+Produces include vs exclude comparison pages.
+
+---
+
+## 1.5 Normality Diagnostics
 
 ```bash
 --normality
 ```
 
 Adds:
-- Shapiro-Wilk p-value
-- D’Agostino K² p-value
-- Jarque–Bera p-value
-- Skewness
-- Excess kurtosis
+
+- Shapiro-Wilk test  
+- D’Agostino K²  
+- Jarque–Bera  
+- Skewness  
+- Excess kurtosis  
+
+Requires `scipy`.
 
 ---
 
-### Gap-outlier detection
-
-```bash
---gap-outliers
-```
-
-Flags the **first reading after a long gap** as an outlier.
-
-Default gap length:
-
-```bash
---gap-days 2
-```
-
-Rule:
-If time difference between consecutive readings > gap-days → later point flagged.
-
----
-
-### Compare including vs excluding gap outliers
-
-```bash
---gap-outliers --compare
-```
-
-Produces a **two-page PDF**:
-
-1. Including gap outliers  
-2. Excluding gap outliers  
-
----
-
-### Start-date filtering
-
-```bash
---start-date YYYY-MM-DD
-```
-
-Only include rows where:
-
-```
-DateTime >= start-date
-```
-
----
-
-### End-date filtering
-
-```bash
---end-date YYYY-MM-DD
-```
-
-Only include rows where:
-
-```
-DateTime < end-date
-```
-
----
-
-### Interactive start-date prompt
-
-If `--start-date` not supplied:
-
-```
-Enter first date of series [YYYY-MM-DD] (default <earliest-date>):
-```
-
-If user types a date, it is annotated in the PDF.
-
----
-
-### Before / After comparison
+## 1.6 Before / After Comparison
 
 ```bash
 --before-after
+--comparison-date YYYY-MM-DD
 ```
 
-Splits dataset at a comparison date.
-
-Default:
-
-```bash
---comparison-date 2026-01-06
-```
-
-Boundary:
+Default comparison date:
 
 ```
-Before: DateTime < comparison-date 00:00
-After : DateTime >= comparison-date 00:00
+2026-01-06
 ```
 
-Combine with gap-outlier comparison:
+Boundary rule:
 
-```bash
---before-after --gap-outliers --compare
-```
+- Before: DateTime < comparison-date 00:00  
+- After:  DateTime ≥ comparison-date 00:00  
 
-Produces four pages.
+Can be combined with:
+
+- Gap-outliers  
+- Compare  
+- Normality  
+
+Produces multi-page PDF.
 
 ---
 
-## 2.4 Common Workflows
+## 1.7 Date Filtering
 
-### Simple
+Non-interactive:
+
+```bash
+--start-date YYYY-MM-DD
+--end-date YYYY-MM-DD
+```
+
+Interactive (optional):
+
+```bash
+--prompt-start-date
+```
+
+---
+
+## 1.8 Example Workflows
+
+### Simple report
 
 ```bash
 python3 bp_report.py bp.csv -o bp.pdf
 ```
 
-### With normality
-
-```bash
-python3 bp_report.py bp.csv -o bp.pdf --normality
-```
-
-### Gap compare
-
-```bash
-python3 bp_report.py bp.csv -o bp.pdf --gap-outliers --compare
-```
-
-### Before/After
-
-```bash
-python3 bp_report.py bp.csv -o bp_before_after.pdf --before-after --comparison-date 2026-01-06
-```
-
-### Full
+### Full analysis
 
 ```bash
 python3 bp_report.py bp.csv -o bp_full.pdf \
   --before-after --comparison-date 2026-01-06 \
-  --gap-outliers --gap-days 2 --compare --normality
+  --gap-outliers --gap-days 2 \
+  --compare --normality
 ```
 
 ---
 
-## 2.5 Python Dependencies
+## 1.9 Runner Script
+
+`run_bp_before_after.sh`
+
+Default behavior:
+
+- Comparison date: 2026-01-06  
+- Gap window: 2 days  
+- Sitting window: 15 minutes  
+- Produces single multi-page PDF  
+
+Run:
+
+```bash
+./run_bp_before_after.sh
+```
+
+---
+
+## 1.10 Dependencies
 
 ```bash
 pip install pandas numpy matplotlib scipy
 ```
 
-(`scipy` optional unless using `--normality`)
+`scipy` required only for `--normality`.
 
 ---
 
-## 2.6 Privacy Note
+## 1.11 Privacy
 
-`bp.csv` contains personal health information.
-
-Consider:
-
-```bash
-echo "bp.csv" >> .gitignore
-```
+Local health data (`bp.csv`) and generated PDFs are ignored via `.gitignore`.
 
 ---
 
-# 3. Repository Layout
+# 2. covid.py
+
+Original COVID data utility script (unchanged).
+
+---
+
+# Repository Layout
 
 ```
 covid/
 ├── covid.py
 ├── bp_report.py
-├── bp.csv        (optional / local)
-└── README.md
+├── run_bp_before_after.sh
+├── README.md
+└── bp.csv        (local only, ignored)
 ```
 
 ---
 
-# 4. License
+# License
 
 Personal use / internal tooling.

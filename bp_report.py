@@ -197,6 +197,35 @@ def mark_gap_outliers(df: pd.DataFrame, gap_days: int) -> pd.DataFrame:
     return out
 
 
+def filter_sitting_readings(df: pd.DataFrame, window_minutes: int = 15) -> tuple[pd.DataFrame, int]:
+    """
+    Collapse multiple readings taken within a single "sitting".
+
+    Rule:
+      - Sort by DateTime ascending.
+      - Consecutive readings with a time gap <= window_minutes are considered part of the same sitting.
+      - Keep ONLY the most recent reading in each sitting (i.e., the last row in that cluster).
+
+    Returns:
+      (filtered_df, num_dropped)
+    """
+    if df.empty:
+        return df.copy(), 0
+    if window_minutes <= 0:
+        return df.copy(), 0
+
+    d = df.sort_values("DateTime").copy()
+    dt = pd.to_datetime(d["DateTime"])
+    diffs_min = dt.diff().dt.total_seconds().div(60.0)
+
+    # Start a new group when the gap is greater than the sitting window.
+    group_id = (diffs_min.isna() | (diffs_min > window_minutes)).cumsum()
+
+    filtered = d.groupby(group_id, as_index=False).tail(1).copy()
+    dropped = int(len(d) - len(filtered))
+    return filtered, dropped
+
+
 def prompt_series_start_date(df: pd.DataFrame) -> Tuple[pd.Timestamp, bool, str]:
     """
     Prompt user for the first date of the analysis series in ISO format (YYYY-MM-DD).
@@ -330,6 +359,8 @@ def plot_single_report_page(
         lines.append(start_date_note)
     if comparison_note:
         lines.append(comparison_note)
+    if sitting_note:
+        lines.append(sitting_note)
         lines.append("")
     if highlight_gap_outliers:
         lines.append(f"Gap-outlier rule: first reading after a gap is flagged. Gap outliers on this page: {gap_outlier_count}")
@@ -365,6 +396,7 @@ def write_report_pdf(
     compare: bool,
     start_date_note: str = "",
     comparison_note: str = "",
+    sitting_note: str = "",
 ):
     """
     Write a PDF report. `segments` is a list of (segment_label, df) pairs.
@@ -489,6 +521,18 @@ def main() -> int:
         default=3,
         help="Gap threshold in days. If time between consecutive measurements is > gap_days, the next reading is flagged.",
     )
+
+    ap.add_argument(
+        "--sitting-window-minutes",
+        type=int,
+        default=15,
+        help="Collapse multiple readings within a sitting window (minutes), keeping only the most recent reading (default: 15).",
+    )
+    ap.add_argument(
+        "--no-sitting-filter",
+        action="store_true",
+        help="Disable sitting-window collapsing (keep all readings).",
+    )
     ap.add_argument(
         "--compare",
         action="store_true",
@@ -574,6 +618,7 @@ def main() -> int:
         compare=args.compare,
         start_date_note=start_date_note,
         comparison_note=comparison_note,
+        sitting_note=sitting_note,
     )
     out_path = args.out.resolve()
     print(f"✅ Wrote {out_path}")

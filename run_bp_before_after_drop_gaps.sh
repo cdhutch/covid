@@ -24,6 +24,8 @@ python3 bp_report.py "$CSV_PATH" \
   --title "Blood Pressure — Before/After ${COMP_DATE}" \
   --before-after \
   --comparison-date "$COMP_DATE" \
+  --gap-outliers \
+  --gap-days "$GAP_DAYS" \
   --compare \
   --sitting-window-minutes 15
 echo "Wrote:"

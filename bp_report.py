@@ -268,7 +268,6 @@ def add_value_labels(ax, x, y, color: str, y_offset: float):
 def _fmt(v: float) -> str:
     return "—" if not np.isfinite(v) else f"{v:.2f}"
 
-
 def _make_figure_and_axes() -> Tuple[plt.Figure, plt.Axes, plt.Axes]:
     fig = plt.figure(figsize=(11, 8.5))
     gs = fig.add_gridspec(nrows=2, ncols=1, height_ratios=[4.8, 1.8], hspace=0.15)
@@ -286,6 +285,7 @@ def plot_single_report_page(
     highlight_gap_outliers: bool,
     start_date_note: str = "",
     comparison_note: str = "",
+    sitting_note: str = "",
 ) -> plt.Figure:
     # Data
     x_all = df["DateTime"].to_numpy()
@@ -432,6 +432,7 @@ def write_report_pdf(
                     highlight_gap_outliers=True,
                     start_date_note=start_date_note,
                     comparison_note=comparison_note,
+                    sitting_note=sitting_note,
                 )
                 pdf.savefig(fig1, bbox_inches="tight")
                 plt.close(fig1)
@@ -446,6 +447,7 @@ def write_report_pdf(
                     highlight_gap_outliers=False,
                     start_date_note=start_date_note,
                     comparison_note=comparison_note,
+                    sitting_note=sitting_note,
                 )
                 pdf.savefig(fig2, bbox_inches="tight")
                 plt.close(fig2)
@@ -464,6 +466,7 @@ def write_report_pdf(
                     highlight_gap_outliers=highlight,
                     start_date_note=start_date_note,
                     comparison_note=comparison_note,
+                    sitting_note=sitting_note,
                 )
                 pdf.savefig(fig, bbox_inches="tight")
                 plt.close(fig)
@@ -586,6 +589,17 @@ def main() -> int:
         df = df[df["DateTime"] < end_date].copy()
         if df.empty:
             raise SystemExit("No rows remain after applying end-date filter.")
+
+    # ---- Sitting filter (keep most recent reading within window) ----
+    sitting_note = ""
+    if not args.no_sitting_filter:
+        df_before_n = len(df)
+        df, dropped = filter_sitting_readings(df, window_minutes=args.sitting_window_minutes)
+        if dropped > 0:
+            sitting_note = (
+                f"Sitting filter: kept most recent reading within {args.sitting_window_minutes} min "
+                f"(dropped {dropped})."
+            )
 
     # ---- Segmentation: all vs before/after ----
     segments: list[tuple[str, pd.DataFrame]] = []
